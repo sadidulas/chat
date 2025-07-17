@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat - Made by SADIDUL</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Username Modal -->
+    <div id="username-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Welcome to Real-time Chat! 💬</h2>
+                <p class="made-by">MADE BY SADIDUL</p>
+            </div>
+            <p>Please enter your name to join the chat:</p>
+            <input type="text" id="username-input" placeholder="Enter your name..." maxlength="20">
+            <button id="join-btn">Join Chat</button>
+        </div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="chat-container" class="hidden">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="header-left">
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="header-info">
+                    <h1>Real-time Chat</h1>
+                    <p class="made-by-header">MADE BY SADIDUL</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span id="current-user"></span>
+                    <span id="online-count" class="online-badge">0 online</span>
+                </div>
+                <button id="theme-toggle" class="theme-toggle" title="Toggle theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Online Users Sidebar -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>Online Users</h3>
+                <button id="sidebar-close" class="sidebar-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="online-users-list"></div>
+        </div>
+
+        <!-- Sidebar Overlay for mobile -->
+        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+        <!-- Chat Area -->
+        <div class="chat-area">
+            <!-- Messages Container -->
+            <div id="messages-container"></div>
+
+            <!-- Typing Indicator -->
+            <div id="typing-indicator" class="typing-indicator hidden"></div>
+
+            <!-- Message Input -->
+            <div class="message-input-container">
+                <div class="input-actions">
+                    <button id="file-btn" class="action-btn" title="Share file">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <button id="image-btn" class="action-btn" title="Share image">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <button id="voice-call-btn" class="action-btn voice-btn" title="Start voice call">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                </div>
+                <input type="text" id="message-input" placeholder="Type your message..." maxlength="500">
+                <button id="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice Call Modal -->
+    <div id="voice-call-modal" class="modal hidden">
+        <div class="modal-content voice-call-content">
+            <div class="call-header">
+                <h3 id="call-status">Connecting...</h3>
+                <p id="call-user"></p>
+            </div>
+            <div class="call-controls">
+                <button id="mute-btn" class="call-btn">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button id="end-call-btn" class="call-btn end-call">
+                    <i class="fas fa-phone-slash"></i>
+                </button>
+            </div>
+            <div class="call-timer">
+                <span id="call-duration">00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Input (hidden) -->
+    <input type="file" id="file-input" style="display: none;" accept="*/*">
+    <input type="file" id="image-input" style="display: none;" accept="image/*">
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
