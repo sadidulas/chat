@@ -1,90 +1,166 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require("socket.io");
+const socketIo = require('socket.io');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = socketIo(server);
 
-const port = 3000;
-const chatHistoryFile = path.join(__dirname, 'chat-history.json');
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(express.static(path.join(__dirname)));
+// Store connected users
+const connectedUsers = new Map();
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-function readChatHistory() {
-    try {
-        const data = fs.readFileSync(chatHistoryFile, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        return [];
-    }
-}
-
-function writeChatHistory(history) {
-    fs.writeFileSync(chatHistoryFile, JSON.stringify(history, null, 2));
-}
-
-let onlineUsers = {};
-
+// Handle socket connections
 io.on('connection', (socket) => {
-  console.log('a user connected');
+  console.log('A user connected:', socket.id);
 
+  // Handle user joining
   socket.on('user-joined', (username) => {
-    onlineUsers[socket.id] = username;
-    socket.username = username;
-    io.emit('online-users', Object.values(onlineUsers));
-    io.emit('users-count', Object.keys(onlineUsers).length);
-    socket.broadcast.emit('user-connected', { message: `${username} has joined the chat.` });
-    socket.emit('chat history', readChatHistory());
+    // Store user info
+    connectedUsers.set(socket.id, {
+      id: socket.id,
+      username: username,
+      joinedAt: new Date()
+    });
+
+    // Notify all users about new user
+    socket.broadcast.emit('user-connected', {
+      username: username,
+      message: `${username} joined the chat`,
+      timestamp: new Date()
+    });
+
+    // Send current online users to the new user
+    const onlineUsers = Array.from(connectedUsers.values()).map(user => user.username);
+    socket.emit('online-users', onlineUsers);
+
+    // Send online users count to all users
+    io.emit('users-count', connectedUsers.size);
+
+    console.log(`${username} joined the chat`);
   });
 
+  // Handle chat messages
   socket.on('chat-message', (data) => {
-    const history = readChatHistory();
-    const messageData = { 
-        username: socket.username, 
-        message: data.message, 
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      const messageData = {
+        username: user.username,
+        message: data.message,
         timestamp: new Date(),
         userId: socket.id
-    };
-    history.push(messageData);
-    writeChatHistory(history);
-    io.emit('chat-message', messageData);
+      };
+
+      // Broadcast message to all users including sender
+      io.emit('chat-message', messageData);
+      console.log(`${user.username}: ${data.message}`);
+    }
   });
 
-  socket.on('typing', (data) => {
-    socket.broadcast.emit('user-typing', { username: socket.username, isTyping: data.isTyping });
+  // Handle file sharing
+  socket.on('file-share', (data) => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      const fileData = {
+        username: user.username,
+        file: data,
+        timestamp: new Date(),
+        userId: socket.id
+      };
+
+      // Broadcast file to all users including sender
+      io.emit('file-share', fileData);
+      console.log(`${user.username} shared a file: ${data.name}`);
+    }
   });
 
+  // Handle image sharing
+  socket.on('image-share', (data) => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      const imageData = {
+        username: user.username,
+        image: data,
+        timestamp: new Date(),
+        userId: socket.id
+      };
+
+      // Broadcast image to all users including sender
+      io.emit('image-share', imageData);
+      console.log(`${user.username} shared an image: ${data.name}`);
+    }
+  });
+
+  // Handle voice call events
   socket.on('voice-call-start', () => {
-    socket.broadcast.emit('voice-call-notification', { username: socket.username, action: 'start' });
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      socket.broadcast.emit('voice-call-notification', {
+        username: user.username,
+        action: 'start'
+      });
+      console.log(`${user.username} started a voice call`);
+    }
   });
 
   socket.on('voice-call-end', () => {
-    socket.broadcast.emit('voice-call-notification', { username: socket.username, action: 'end' });
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      socket.broadcast.emit('voice-call-notification', {
+        username: user.username,
+        action: 'end'
+      });
+      console.log(`${user.username} ended a voice call`);
+    }
   });
 
   socket.on('voice-call-mute', (data) => {
-    socket.broadcast.emit('voice-call-mute', { username: socket.username, isMuted: data.isMuted });
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      socket.broadcast.emit('voice-call-mute', {
+        username: user.username,
+        isMuted: data.isMuted
+      });
+    }
   });
 
-  socket.on('disconnect', () => {
-    if (onlineUsers[socket.id]) {
-      const username = onlineUsers[socket.id];
-      delete onlineUsers[socket.id];
-      io.emit('online-users', Object.values(onlineUsers));
-      io.emit('users-count', Object.keys(onlineUsers).length);
-      io.emit('user-disconnected', { message: `${username} has left the chat.` });
+  // Handle user typing
+  socket.on('typing', (data) => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      socket.broadcast.emit('user-typing', {
+        username: user.username,
+        isTyping: data.isTyping
+      });
     }
-    console.log('user disconnected');
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      // Remove user from connected users
+      connectedUsers.delete(socket.id);
+
+      // Notify all users about user leaving
+      socket.broadcast.emit('user-disconnected', {
+        username: user.username,
+        message: `${user.username} left the chat`,
+        timestamp: new Date()
+      });
+
+      // Send updated online users count
+      io.emit('users-count', connectedUsers.size);
+
+      console.log(`${user.username} left the chat`);
+    }
   });
 });
 
-server.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Chat server running on http://localhost:${PORT}`);
 });
